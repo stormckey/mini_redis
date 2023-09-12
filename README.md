@@ -20,6 +20,13 @@ Then try out the six actions in another terminal by using the client
 client set/get/del/ping/subscribe/publish [args]
 ```
 
+mini-redis also support set expire time when setting:
+```
+client set zju 114514 ex 10
+-----------wait 10 secs----------
+client get zju
+```
+
 Or just run the test case in `test.sh`
 ```
 source test.sh
