@@ -32,6 +32,11 @@ async fn main() {
             key: Some(FastStr::from(Arc::new(args.remove(2)))),
             value: Some(FastStr::from(Arc::new(args.remove(2)))),
             request_type: RequestType::Set,
+            expire_time: match args.len() {
+                4 => Some(args.remove(3).parse().unwrap()),
+                2 => None,
+                _ => panic!("invalid args"),
+            },
             ..base_request
         },
         "get" => RedisRequest {
@@ -67,34 +72,32 @@ async fn main() {
     };
     let resp = CLIENT.redis_command(req.clone()).await;
     match resp {
-        Ok(resp) => {
-            match resp.response_type {
-                volo_gen::mini_redis::ResponseType::Print => {
-                    println!("{}", resp.value.unwrap())
-                }
-                volo_gen::mini_redis::ResponseType::Trap => {
-                    println!(
-                        "subscribe {} channels",
-                        req.channels.as_ref().unwrap().len()
-                    );
-                    loop {
-                        let req = RedisRequest {
-                            block: Some(true),
-                            ..req.clone()
-                        };
-                        let resp = CLIENT.redis_command(req).await;
-                        match resp {
-                            Ok(info) => {
-                                println!("{}", info.value.unwrap());
-                            }
-                            _ => {
-                                println!("error");
-                            }
+        Ok(resp) => match resp.response_type {
+            volo_gen::mini_redis::ResponseType::Print => {
+                println!("{}", resp.value.unwrap())
+            }
+            volo_gen::mini_redis::ResponseType::Trap => {
+                println!(
+                    "subscribe {} channels",
+                    req.channels.as_ref().unwrap().len()
+                );
+                loop {
+                    let req = RedisRequest {
+                        block: Some(true),
+                        ..req.clone()
+                    };
+                    let resp = CLIENT.redis_command(req).await;
+                    match resp {
+                        Ok(info) => {
+                            println!("{}", info.value.unwrap());
+                        }
+                        _ => {
+                            println!("error");
                         }
                     }
                 }
             }
-        }
+        },
         Err(e) => match e {
             volo_thrift::ResponseError::Application(err) => {
                 println!("{}", err.message)

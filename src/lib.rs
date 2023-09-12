@@ -1,12 +1,13 @@
 #![feature(impl_trait_in_assoc_type)]
 use futures::future::select_all;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::broadcast;
 use tracing::info;
 use volo::FastStr;
 pub struct S {
-    pub map: Mutex<HashMap<String, String>>,
+    pub map: Arc<Mutex<HashMap<String, String>>>,
     pub channels: Mutex<HashMap<String, broadcast::Sender<String>>>,
 }
 
@@ -22,6 +23,17 @@ impl volo_gen::mini_redis::RedisService for S {
         info!("enter");
         match _req.request_type {
             RequestType::Set => {
+                if _req.expire_time.is_some() {
+                    let map_clone = self.map.clone();
+                    let key = _req.key.clone().unwrap().into_string();
+                    let expire_time = _req.expire_time.clone().unwrap();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(expire_time as u64))
+                            .await;
+                        let mut map = map_clone.lock().unwrap();
+                        map.remove(&key);
+                    });
+                }
                 self.map.lock().unwrap().insert(
                     _req.key.unwrap().into_string(),
                     _req.value.unwrap().into_string(),
