@@ -1,0 +1,109 @@
+use lazy_static::lazy_static;
+use mini_redis::{FilterLayer, LogLayer};
+use std::net::SocketAddr;
+use std::sync::Arc;
+use volo::FastStr;
+// use tracing::info;
+use volo_gen::mini_redis::{RedisRequest, RequestType};
+
+lazy_static! {
+    static ref CLIENT: volo_gen::mini_redis::RedisServiceClient = {
+        let addr: SocketAddr = "127.0.0.1:8087".parse().unwrap();
+        volo_gen::mini_redis::RedisServiceClientBuilder::new("redis")
+            .layer_outer(LogLayer)
+            .layer_outer(FilterLayer)
+            .address(addr)
+            .build()
+    };
+}
+#[volo::main]
+async fn main() {
+    tracing_subscriber::fmt::init();
+    let mut args: Vec<String> = std::env::args().collect();
+    let base_request = RedisRequest {
+        key: None,
+        value: None,
+        request_type: RequestType::Ping,
+        expire_time: None,
+        channels: None,
+        block: None,
+    };
+    let req = match args[1].to_lowercase().as_str() {
+        "set" => RedisRequest {
+            key: Some(FastStr::from(Arc::new(args.remove(2)))),
+            value: Some(FastStr::from(Arc::new(args.remove(2)))),
+            request_type: RequestType::Set,
+            ..base_request
+        },
+        "get" => RedisRequest {
+            key: Some(FastStr::from(Arc::new(args.remove(2)))),
+            request_type: RequestType::Get,
+            ..base_request
+        },
+        "del" => RedisRequest {
+            key: Some(FastStr::from(Arc::new(args.remove(2)))),
+            request_type: RequestType::Del,
+            ..base_request
+        },
+        "ping" => RedisRequest { ..base_request },
+        "subscribe" => RedisRequest {
+            request_type: RequestType::Subscribe,
+            channels: Some(
+                args.drain(2..)
+                    .map(|x| FastStr::from(Arc::new(x)))
+                    .collect(),
+            ),
+            block: Some(false),
+            ..base_request
+        },
+        "publish" => RedisRequest {
+            value: Some(FastStr::from(Arc::new(args.remove(3)))),
+            request_type: RequestType::Publish,
+            channels: Some(vec![FastStr::from(Arc::new(args.remove(2)))]),
+            ..base_request
+        },
+        _ => {
+            panic!("unknown command");
+        }
+    };
+    // info!("ready to call");
+    let resp = CLIENT.redis_command(req.clone()).await;
+    // info!("Ok");
+    match resp {
+        Ok(resp) => {
+            match resp.response_type {
+                volo_gen::mini_redis::ResponseType::Print => {
+                    println!("{}", resp.value.unwrap())
+                }
+                volo_gen::mini_redis::ResponseType::Trap => {
+                    println!("subscribe");
+                    loop{
+                        let req = RedisRequest{
+                            block: Some(true),
+                            ..req.clone()
+                        };
+                        // info!("{:?}",req);
+                        let resp = CLIENT.redis_command(req).await;  
+                        match resp {
+                            Ok(info) => {
+                                println!("{}",info.value.unwrap());
+                            }
+                            _ => {
+                                println!("error");
+                            }
+                        }
+                        // println!("{:?}",resp);
+                    }
+                }
+            }
+        }
+        Err(e) => match e {
+            volo_thrift::ResponseError::Application(err) => {
+                println!("{}", err.message)
+            }
+            _ => {
+                tracing::error!("{:?}", e);
+            }
+        },
+    }
+}
