@@ -5,7 +5,6 @@ use mini_redis::S;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Mutex;
-// use std::sync::Arc;
 use tokio::sync::broadcast;
 
 #[volo::main]

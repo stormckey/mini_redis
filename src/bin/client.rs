@@ -3,7 +3,6 @@ use mini_redis::FilterLayer;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use volo::FastStr;
-// use tracing::info;
 use volo_gen::mini_redis::{RedisRequest, RequestType};
 
 lazy_static! {
@@ -66,9 +65,7 @@ async fn main() {
             panic!("unknown command");
         }
     };
-    // info!("ready to call");
     let resp = CLIENT.redis_command(req.clone()).await;
-    // info!("Ok");
     match resp {
         Ok(resp) => {
             match resp.response_type {
@@ -85,7 +82,6 @@ async fn main() {
                             block: Some(true),
                             ..req.clone()
                         };
-                        // info!("{:?}",req);
                         let resp = CLIENT.redis_command(req).await;
                         match resp {
                             Ok(info) => {
@@ -95,7 +91,6 @@ async fn main() {
                                 println!("error");
                             }
                         }
-                        // println!("{:?}",resp);
                     }
                 }
             }

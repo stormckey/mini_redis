@@ -89,7 +89,7 @@ impl volo_gen::mini_redis::RedisService for S {
                     match res {
                         Ok(info) => Ok(RedisResponse {
                             value: Some(
-                                (String::from("from ") + &vec[index].1 + " :" + &info).into(),
+                                (String::from("from ") + &vec[index].1 + ": " + &info).into(),
                             ),
                             response_type: ResponseType::Trap,
                         }),
