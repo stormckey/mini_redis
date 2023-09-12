@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use volo::FastStr;
 use tracing::info;
 use tokio::sync::broadcast;
+use futures::future::select_all;
 pub struct S {
     pub map: Mutex<HashMap<String, String>>,
     pub channels: Mutex<HashMap<String,broadcast::Sender<String>>>,
@@ -71,14 +72,22 @@ impl volo_gen::mini_redis::RedisService for S {
             RequestType::Subscribe => {
 				match _req.block.unwrap() {
 					true => {
-						//only listen the first channel mentioned
-						let channel = _req.channels.unwrap()[0].clone().into_string();
-                        let mut rx = self.channels.lock().unwrap().get(&channel).unwrap().subscribe();
-                        info!("now wait");
-						Ok(RedisResponse {
-							value: Some(rx.recv().await.unwrap().into()),
-							response_type: ResponseType::Print,
-						})
+                        let mut vec = self.channels.lock().unwrap()
+                            .iter()
+                            .filter(|(k,_v)| _req.channels.as_ref().unwrap().contains(&FastStr::from((*k).clone())))
+                            .map(|(k,v)| (v.subscribe(),k.clone()))
+                            .collect::<Vec<_>>();
+                        let (res, index, _ ) = select_all(vec.iter_mut().map(|(rx,_name)| Box::pin(rx.recv()))).await;
+                        match res {
+                            Ok(info) => Ok(RedisResponse{
+                                value: Some((String::from("from ") + &vec[index].1 + " :"+ &info).into()),
+                                response_type: ResponseType::Trap,
+                            }),
+                            Err(_) => Ok(RedisResponse{
+                                value: None,
+                                response_type: ResponseType::Trap,
+                            })
+                        }
 					}
 					false => {
 						for channel in _req.channels.unwrap() {

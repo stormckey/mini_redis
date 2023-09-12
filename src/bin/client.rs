@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use mini_redis::{FilterLayer, LogLayer};
+use mini_redis::FilterLayer;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use volo::FastStr;
@@ -10,7 +10,7 @@ lazy_static! {
     static ref CLIENT: volo_gen::mini_redis::RedisServiceClient = {
         let addr: SocketAddr = "127.0.0.1:8087".parse().unwrap();
         volo_gen::mini_redis::RedisServiceClientBuilder::new("redis")
-            .layer_outer(LogLayer)
+            // .layer_outer(LogLayer)
             .layer_outer(FilterLayer)
             .address(addr)
             .build()
@@ -76,7 +76,7 @@ async fn main() {
                     println!("{}", resp.value.unwrap())
                 }
                 volo_gen::mini_redis::ResponseType::Trap => {
-                    println!("subscribe");
+                    println!("subscribe {} channels", req.channels.as_ref().unwrap().len());
                     loop{
                         let req = RedisRequest{
                             block: Some(true),
