@@ -1,13 +1,13 @@
 #![feature(impl_trait_in_assoc_type)]
+use futures::future::select_all;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use volo::FastStr;
-use tracing::info;
 use tokio::sync::broadcast;
-use futures::future::select_all;
+use tracing::info;
+use volo::FastStr;
 pub struct S {
     pub map: Mutex<HashMap<String, String>>,
-    pub channels: Mutex<HashMap<String,broadcast::Sender<String>>>,
+    pub channels: Mutex<HashMap<String, broadcast::Sender<String>>>,
 }
 
 use volo_gen::mini_redis::{RedisResponse, RequestType, ResponseType};
@@ -69,54 +69,73 @@ impl volo_gen::mini_redis::RedisService for S {
                 value: Some("PONG".into()),
                 response_type: ResponseType::Print,
             }),
-            RequestType::Subscribe => {
-				match _req.block.unwrap() {
-					true => {
-                        let mut vec = self.channels.lock().unwrap()
-                            .iter()
-                            .filter(|(k,_v)| _req.channels.as_ref().unwrap().contains(&FastStr::from((*k).clone())))
-                            .map(|(k,v)| (v.subscribe(),k.clone()))
-                            .collect::<Vec<_>>();
-                        let (res, index, _ ) = select_all(vec.iter_mut().map(|(rx,_name)| Box::pin(rx.recv()))).await;
-                        match res {
-                            Ok(info) => Ok(RedisResponse{
-                                value: Some((String::from("from ") + &vec[index].1 + " :"+ &info).into()),
-                                response_type: ResponseType::Trap,
-                            }),
-                            Err(_) => Ok(RedisResponse{
-                                value: None,
-                                response_type: ResponseType::Trap,
-                            })
+            RequestType::Subscribe => match _req.block.unwrap() {
+                true => {
+                    let mut vec = self
+                        .channels
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .filter(|(k, _v)| {
+                            _req.channels
+                                .as_ref()
+                                .unwrap()
+                                .contains(&FastStr::from((*k).clone()))
+                        })
+                        .map(|(k, v)| (v.subscribe(), k.clone()))
+                        .collect::<Vec<_>>();
+                    let (res, index, _) =
+                        select_all(vec.iter_mut().map(|(rx, _name)| Box::pin(rx.recv()))).await;
+                    match res {
+                        Ok(info) => Ok(RedisResponse {
+                            value: Some(
+                                (String::from("from ") + &vec[index].1 + " :" + &info).into(),
+                            ),
+                            response_type: ResponseType::Trap,
+                        }),
+                        Err(_) => Ok(RedisResponse {
+                            value: None,
+                            response_type: ResponseType::Trap,
+                        }),
+                    }
+                }
+                false => {
+                    for channel in _req.channels.unwrap() {
+                        if !self
+                            .channels
+                            .lock()
+                            .unwrap()
+                            .contains_key(&channel.clone().into_string())
+                        {
+                            let (tx, _) = broadcast::channel(10);
+                            self.channels
+                                .lock()
+                                .unwrap()
+                                .insert(channel.clone().into_string(), tx);
                         }
-					}
-					false => {
-						for channel in _req.channels.unwrap() {
-							if !self.channels.lock().unwrap().contains_key(&channel.clone().into_string()) {
-                                let (tx, _) = broadcast::channel(10);
-								self.channels.lock().unwrap().insert(channel.clone().into_string(), tx);
-							}
-						}
-						Ok(RedisResponse {
-							value: Some("Ok".into()),
-							response_type: ResponseType::Trap,
-						})
-					}
-				}
-                // Ok(Default::default())
-			}
+                    }
+                    Ok(RedisResponse {
+                        value: Some("Ok".into()),
+                        response_type: ResponseType::Trap,
+                    })
+                }
+            },
             RequestType::Publish => {
-                // info!("wait for the lock");
-                // let mut bind = self.channels.lock().unwrap();
-                // info!("get"); 
                 let channel = _req.channels.unwrap()[0].clone().into_string();
-                let _ = self.channels.lock().unwrap().get(&channel).unwrap().send(_req.value.unwrap().into_string()).unwrap();
+                let _ = self
+                    .channels
+                    .lock()
+                    .unwrap()
+                    .get(&channel)
+                    .unwrap()
+                    .send(_req.value.unwrap().into_string())
+                    .unwrap();
                 info!("send over");
                 Ok(RedisResponse {
                     value: Some("Ok".into()),
                     response_type: ResponseType::Print,
                 })
-                // Ok(Default::default())
-			},
+            }
         }
     }
 }

@@ -76,17 +76,20 @@ async fn main() {
                     println!("{}", resp.value.unwrap())
                 }
                 volo_gen::mini_redis::ResponseType::Trap => {
-                    println!("subscribe {} channels", req.channels.as_ref().unwrap().len());
-                    loop{
-                        let req = RedisRequest{
+                    println!(
+                        "subscribe {} channels",
+                        req.channels.as_ref().unwrap().len()
+                    );
+                    loop {
+                        let req = RedisRequest {
                             block: Some(true),
                             ..req.clone()
                         };
                         // info!("{:?}",req);
-                        let resp = CLIENT.redis_command(req).await;  
+                        let resp = CLIENT.redis_command(req).await;
                         match resp {
                             Ok(info) => {
-                                println!("{}",info.value.unwrap());
+                                println!("{}", info.value.unwrap());
                             }
                             _ => {
                                 println!("error");
