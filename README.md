@@ -22,7 +22,7 @@ client set/get/del/ping/subscribe/publish [args]
 
 mini-redis also support set expire time when setting:
 ```
-client set zju 114514 ex 10
+client set zju 114514 --ex 10
 -----------wait 10 secs----------
 client get zju
 ```
@@ -34,7 +34,7 @@ source test.sh
 ![](images/README/2023-09-13-12-53-08.png#pic)
 
 we can also try out the subscribe and publish. Here is a simple demo:
-![](images/README/2023-09-12-21-14-18.png#pic)
+![](images/README/2023-09-13-21-02-45.png#pic)
 
 WARNING: You'd better terminate the server after all the subscribers are terminated. It will take the server a bit long to terminate after get Ctrl-C.
 

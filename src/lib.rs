@@ -6,7 +6,10 @@ use std::sync::Mutex;
 use tokio::sync::broadcast;
 use tracing::info;
 use volo::FastStr;
+pub mod arg;
+
 pub struct S {
+    pub port: u16,
     pub map: Arc<Mutex<HashMap<String, String>>>,
     pub channels: Mutex<HashMap<String, broadcast::Sender<String>>>,
 }
