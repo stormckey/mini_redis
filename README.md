@@ -31,7 +31,7 @@ Or just run the test case in `test.sh`
 ```
 source test.sh
 ```
-![](images/README/2023-09-12-21-10-58.png#pic)
+![](images/README/2023-09-13-12-53-08.png#pic)
 
 we can also try out the subscribe and publish. Here is a simple demo:
 ![](images/README/2023-09-12-21-14-18.png#pic)

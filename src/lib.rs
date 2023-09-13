@@ -78,7 +78,7 @@ impl volo_gen::mini_redis::RedisService for S {
                 }
             }
             RequestType::Ping => Ok(RedisResponse {
-                value: Some("PONG".into()),
+                value: Some(_req.value.unwrap_or("PONG".into())),
                 response_type: ResponseType::Print,
             }),
             RequestType::Subscribe => match _req.block.unwrap() {

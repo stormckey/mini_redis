@@ -9,5 +9,7 @@ echo "\nclient get zju"
 client get zju
 echo "\nclient ping"
 client ping
+echo "\nclient ping Hello"
+client ping Hello
 echo "\nclient set Genshin 114514"
 client set Genshin 114514

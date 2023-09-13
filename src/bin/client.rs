@@ -49,7 +49,13 @@ async fn main() {
             request_type: RequestType::Del,
             ..base_request
         },
-        "ping" => RedisRequest { ..base_request },
+        "ping" => RedisRequest { 
+            value: match args.len(){
+                3 => Some(FastStr::from(Arc::new(args.remove(2)))),
+                2 => None,
+                _ => panic!("invalid args"),
+            },
+            ..base_request },
         "subscribe" => RedisRequest {
             request_type: RequestType::Subscribe,
             channels: Some(
